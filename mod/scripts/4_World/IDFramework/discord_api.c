@@ -1,29 +1,109 @@
-class GetPlayerInfo
+class ProxyRequest
 {
-	string guild_id;
-	string player_name;
-
-	void GetPlayerInfo(string guildId, string player)
-	{
-		guild_id = guildId;
-		player_name = player;
-	}
+	string token;
+	string url;
+	string method;
+	ref array<array<string>> headers = new array<array<string>>;
+	ref array<array<string>> query_parameters = new array<array<string>>;
+	string body;
 }
 
 class DiscordAPI
 {
-	void RequestRoles(string playerName, RestCallback cb)
+	const string DISCORD_URL = "https://discord.com/api/v10";
+
+	protected string m_proxyURL;
+	protected string m_proxyToken;
+	protected string m_discordToken;
+
+	void DiscordAPI(string proxyUrl, string proxyToken, string botToken)
 	{
-		auto config = GetIDConfig();
-		string guildId = config.discordGuidID;
-		string url = config.discordBotURL;
-		auto data = new GetPlayerInfo(guildId, playerName);
+		m_proxyURL = proxyUrl;
+		m_proxyToken = proxyToken;
+		m_discordToken = botToken;
+	}
+
+	void SearchGuildMember(string guildId, int limit, string playerName, RestCallback cb)
+	{
+		ProxyRequest request = new ProxyRequest;
+		request.token = m_proxyToken;
+		request.url = DISCORD_URL + "/guilds/" + guildId + "/members/search";
+		request.method = "GET";
+		array<string> authHeader = {"authorization", "Bot " + m_discordToken};
+		request.headers = { authHeader };
+		array<string> limitParam = {"limit", "" + limit};
+		array<string> queryParam = {"query", playerName};
+		request.query_parameters = {limitParam, queryParam};
+
 		JsonSerializer js = new JsonSerializer();
 		string body;
-		js.WriteToString(data, false, body);
+		js.WriteToString(request, false, body);
 
-		RestContext ctx = GetRestApi().GetRestContext(url);
-		ctx.SetHeader( "application/json" );
-		ctx.POST(cb, "get-player-info", body);
+		RestContext ctx = GetRestApi().GetRestContext(m_proxyURL);
+		ctx.SetHeader("application/json");
+		ctx.POST(cb, "/", body);
 	}
+
+	void ListGuildRoles(string guildId, RestCallback cb)
+	{
+		ProxyRequest request = new ProxyRequest;
+		request.token = m_proxyToken;
+		request.url = DISCORD_URL + "/guilds/" + guildId + "/roles";
+		request.method = "GET";
+		array<string> authHeader = {"authorization", "Bot " + m_discordToken};
+		request.headers = {
+			authHeader
+		};
+
+		JsonSerializer js = new JsonSerializer();
+		string body;
+		js.WriteToString(request, false, body);
+
+		RestContext ctx = GetRestApi().GetRestContext(m_proxyURL);
+		ctx.SetHeader("application/json");
+		ctx.POST(cb, "/", body);
+	}
+}
+
+class ListGuildRolesRoleResponse {
+	string id;
+	string name;
+	string description;
+	string permissions;
+	int position;
+	int color;
+	bool hoist;
+	bool managed;
+	bool mentionable;
+	string icon;
+	string unicode_emoji;
+	int flags;
+}
+
+class SearchGuildMemberMemberResponse {
+	string avatar;
+	string communication_disabled_until;
+	int flags;
+	string joined_at;
+	string nick;
+	bool pending;
+	string premium_since;
+	array<string> roles;
+	string unusual_dm_activity_until;
+	bool mute;
+	bool deaf;
+	SearchGuildMemberMemberUser user;
+}
+
+class SearchGuildMemberMemberUser {
+	string id;
+	string username;
+	string avatar;
+	string discriminator;
+	int public_flags;
+	int flags;
+	string banner;
+	string accent_color;
+	string global_name;
+	string avatar_decorator_data;
 }

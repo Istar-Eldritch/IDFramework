@@ -1,8 +1,17 @@
+class IE_ID_IdentityState
+{
+  int id;
+  string name;
+  string role;
+  string discord_id;
+}
+
+
 class IE_ID_State
 {
     int version = 1;
     int last_id = 0;
-    ref map<string, int> player_card_map = new map<string, int>;
+    ref map<string, ref IE_ID_IdentityState> player_id_map = new map<string, ref IE_ID_IdentityState>;
 }
 
 class IE_ID_StateVersion
@@ -17,6 +26,7 @@ class IE_ID_StateLoader
   static private const string CONFIG_PATH = DIR_PATH + "\\ID_State.json";
 
   ref IE_ID_State state = new IE_ID_State;
+  ref map<int, string> m_cardIdIdx = new map<int, string>;
 
   void Load()
   {
@@ -32,6 +42,10 @@ class IE_ID_StateLoader
       if (v.version == 1)
       {
         JsonFileLoader<IE_ID_State>.JsonLoadFile(CONFIG_PATH, state);
+        foreach( string key, auto value: state.player_id_map)
+        {
+          m_cardIdIdx.Set(value.id, key);
+        }
       }
       else
       {
@@ -52,13 +66,49 @@ class IE_ID_StateLoader
     }
   }
 
-  int CreateCard(PlayerIdentityBase player)
+  IE_ID_IdentityState CreateOrUpdateIdentity(PlayerBase player, string roleName, string discordId)
   {
-    state.last_id++;
-    string player_id = player.GetId();
-    state.player_card_map.Set(player_id, state.last_id);
+	string playerId = player.GetIdentity().GetId();
+	int id;
+	auto existing = state.player_id_map.Get(playerId);
+	if (existing != null)
+	{
+		id = existing.id;
+	}
+	else
+	{
+    	state.last_id++;
+		id = state.last_id;	
+	}
+
+    IE_ID_IdentityState identity = new IE_ID_IdentityState;
+    identity.id = id;
+    identity.name = player.GetIdentity().GetName();
+    identity.role = roleName;
+    identity.discord_id = discordId;
+    state.player_id_map.Set(playerId, identity);
+	m_cardIdIdx.Set(id, playerId);
+	player.SetIDIdentity(id);
+	player.SetDiscordID(discordId);
+	player.SetRole(roleName, true);
+
     Save();
-	return state.last_id;
+	return identity;
+  }
+	
+  IE_ID_IdentityState GetIdentity(string playerId)
+  {
+	  return state.player_id_map.Get(playerId);
+  }
+	
+  IE_ID_IdentityState GetIdentityByCardId(int cardId)
+  {
+	string playerId = m_cardIdIdx.Get(cardId);
+	if (playerId)
+	{
+		return GetIdentity(playerId);
+	}
+	return null;
   }
 }
 

@@ -1,8 +1,24 @@
+class IE_ID_RoleConfig
+{
+  string name;
+  string card;
+  ref array<string> loadout;
+  ref array<array<float>> spawnpoints;
+  ref array<string> permissions = new array<string>;
+  bool spawns_with_card = false;
+}
+
 class IE_ID_Config
 {
-    int version = 1;
-	string discordGuidID;
-    string discordBotURL="http://localhost";
+ 	int version = 1;
+	string discordGuildID;
+  	string discordBotToken;
+  	string proxyUrl="http://localhost";
+	string proxyToken="abc123test";
+	bool kick_not_registered = true;
+	bool kick_no_matching_role = true;
+	int terminal_session_duration = 30;
+  	ref array<ref IE_ID_RoleConfig> roles = new array<ref IE_ID_RoleConfig>;
 }
 
 class IE_ID_ConfigVersion
@@ -18,6 +34,8 @@ class IE_ID_ConfigLoader
 
   ref IE_ID_Config config = new IE_ID_Config;
 
+  ref map<string, int> role_idx;
+	
   void Load()
   {
     if (!FileExist(DIR_PATH))
@@ -32,6 +50,7 @@ class IE_ID_ConfigLoader
       if (v.version == 1)
       {
         JsonFileLoader<IE_ID_Config>.JsonLoadFile(CONFIG_PATH, config);
+		BuildIndex();
       }
       else
       {
@@ -42,6 +61,21 @@ class IE_ID_ConfigLoader
     {
       Save();
     }
+  }
+	
+  protected void BuildIndex()
+  {
+		role_idx = new map<string, int>;
+		for(int idx = 0; idx < config.roles.Count(); idx++)
+		{
+			role_idx.Set(config.roles[idx].name, idx);
+		}
+  }
+	
+  IE_ID_RoleConfig GetRoleByName(string roleName)
+  {
+	int idx = role_idx.Get(roleName);
+	return config.roles[idx];
   }
 
   void Save()
@@ -63,6 +97,7 @@ class IE_ID_ConfigLoader
     if (ctx.Read(data))
     {
         config = data.param1;
+		BuildIndex();
     }
     else if (GetGame().IsServer())
     {
