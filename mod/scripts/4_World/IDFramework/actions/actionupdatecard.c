@@ -50,14 +50,30 @@ class ActionUpdateCard: ActionSingleUseBase {
 		auto config = GetIDConfigLoader();
 		auto roleconfig = config.GetRoleByName(role);
 		auto inventory = HumanInventory.Cast(action_data.m_Player.GetInventory());
-		if (inventory.ReplaceItemInHandsWithNew(InventoryMode.PREDICTIVE, new ReplaceItemWithNewLambda(action_data.m_MainItem, roleconfig.card, action_data.m_Player)));
-		{
-			IE_IdentityCard_Base card = IE_IdentityCard_Base.Cast(inventory.GetEntityInHands());
-			if (card)
-			{
-				Print(m_cardPlayer);
-				card.EvaluateOwner(m_cardPlayer);
-			}
-		}
+		inventory.ReplaceItemInHandsWithNew(InventoryMode.PREDICTIVE, new ReplaceCardLambda(action_data.m_MainItem, roleconfig.card, action_data.m_Player, m_cardPlayer));
+	}
+}
+
+
+class ReplaceCardLambda: ReplaceItemWithNewLambda
+{
+	PlayerBase m_cardPlayer;
+
+	void ReplaceCardLambda(EntityAI old_item, string new_item_type, PlayerBase player, PlayerBase cardPlayer)
+	{
+		m_Player = player;
+		m_IndexQB = -1;
+
+		if (m_Player)
+			m_IndexQB = m_Player.FindQuickBarEntityIndex(old_item);
+		
+		m_cardPlayer = cardPlayer;
+	}
+
+	override protected void OnSuccess(EntityAI new_item)
+	{
+		super.OnSuccess(new_item);
+		IE_IdentityCard_Base card = IE_IdentityCard_Base.Cast(new_item);
+		card.EvaluateOwner(m_cardPlayer);
 	}
 }

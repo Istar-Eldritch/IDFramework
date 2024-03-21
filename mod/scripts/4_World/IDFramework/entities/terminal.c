@@ -29,7 +29,6 @@ class IE_IDTerminal_Base: ItemBase
 	void SetSessionPermissions(array<string> permissions, int timeout) {
 		m_Permissions = permissions;
 		RPCSingleParam(RPC_UPDATE_PERMISSIONS, new Param1<array<string>>(m_Permissions), true);
-
 		if (timeout > 0)
 			GetGame().GetCallQueue(CALL_CATEGORY_SYSTEM).CallLater(SetSessionPermissions, timeout, false, new array<string>, 0);
 	}
