@@ -12,8 +12,8 @@ class IE_ID_Config
 {
  	int version = 1;
 	string discordGuildID;
-  	string discordBotToken;
-  	string proxyUrl="http://localhost";
+  string discordBotToken;
+  string proxyUrl="https://dayz-proxy.eldritchist.dev";
 	string proxyToken="abc123test";
 	bool kick_not_registered = true;
 	bool kick_no_matching_role = true;

@@ -56,7 +56,7 @@ class ActionUpdateCard: ActionSingleUseBase {
 			if (card)
 			{
 				Print(m_cardPlayer);
-				card.EvaluateOwner(true, m_cardPlayer);
+				card.EvaluateOwner(m_cardPlayer);
 			}
 		}
 	}

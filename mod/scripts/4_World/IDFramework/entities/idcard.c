@@ -13,8 +13,12 @@ class IE_IdentityCard_Base: InventoryItemSuper
 	{
 		super.InitItemVariables();
 		RegisterNetSyncVariableInt("m_Identity",0, 100000);
-		// This delay is required to the player information is loaded.
-		GetGame().GetCallQueue(CALL_CATEGORY_SYSTEM).CallLater(EvaluateOwner, 3000, false, false);
+	}
+	
+	override void OnVariablesSynchronized()
+	{
+		super.OnVariablesSynchronized();
+		RPCSingleParam(RPC_REQUEST_TEXT, null, true);
 	}
 
 	int GetIdInCard()
@@ -58,34 +62,18 @@ class IE_IdentityCard_Base: InventoryItemSuper
 	}
 
 	/// This logic is used to initialize cards that are spawned on players inventories.
-	void EvaluateOwner(bool forced = false, PlayerBase player = null)
+	void EvaluateOwner(PlayerBase player)
 	{
-		if (GetGame().IsServer())
-		{
-			if (player == null)
-				player = PlayerBase.Cast(GetHierarchyRootPlayer());
-			if (player != null)
-			{
-				if (forced || m_Identity == 0)
-		        {
-					auto state = GetIDStateLoader();
-					m_PlayerId = player.GetIdentity().GetId();
-					auto identity = state.GetIdentity(m_PlayerId);
-					m_Identity = identity.id;
-					m_Name = identity.name;
-					m_Role = identity.role;
-					auto config = GetIDConfigLoader();
-					auto role = config.GetRoleByName(m_Role);
-					m_Permissions = role.permissions;
-					Print(m_Permissions);
-					SetSynchDirty();
-					RPCSingleParam(RPC_UPDATE_TEXT, new Param4<string, string, string, array<string>>(m_Name, m_Role, m_PlayerId, m_Permissions), true);
-		        }
-			}
-		}
-		else {
-			RPCSingleParam(RPC_REQUEST_TEXT, new Param1<bool>(true), true);
-		}
+		auto state = GetIDStateLoader();
+		m_PlayerId = player.GetIdentity().GetId();
+		auto identity = state.GetIdentity(m_PlayerId);
+		m_Identity = identity.id;
+		m_Name = identity.name;
+		m_Role = identity.role;
+		auto config = GetIDConfigLoader();
+		auto role = config.GetRoleByName(m_Role);
+		m_Permissions = role.permissions;
+		SetSynchDirty();
 	}
 
     override void OnStoreSave(ParamsWriteContext ctx)

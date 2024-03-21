@@ -156,6 +156,16 @@ modded class MissionServer
 						bool hasNewId = oldDiscordId == null || oldDiscordId.id != newDiscordId.id || oldDiscordId.name != newDiscordId.name;
 						if (m_newPlayer || hasNewId)
 						{
+							int spawnCount = role.spawnpoints.Count();
+							int spawnIdx = Math.RandomInt(0, spawnCount);
+							array<float> pos = role.spawnpoints.Get(spawnIdx);
+							vector v = "0 0 0";
+							v[0] = pos[0];
+							v[1] = pos[1];
+							v[2] = pos[2];
+
+							DeveloperTeleport.SetPlayerPosition(player, v);
+
 							array<EntityAI> items = new array<EntityAI>;
 							player.GetInventory().EnumerateInventory(InventoryTraversalType.POSTORDER, items);
 							foreach (auto item: items)
@@ -167,22 +177,16 @@ modded class MissionServer
 							}
 							foreach (string cls: role.loadout)
 							{
-								player.GetInventory().CreateInInventory(cls);
+								CreateItemOnPlayerInventory(player, cls);
 							}
 							
 							if(role.spawns_with_card && role.card != "")
 							{
-								player.GetInventory().CreateInInventory(role.card);
+								ItemBase cardItem = CreateItemOnPlayerInventory(player, role.card);
+								IE_IdentityCard_Base card = IE_IdentityCard_Base.Cast(cardItem);
+								card.EvaluateOwner(player);
 							}
-							int spawnCount = role.spawnpoints.Count();
-							int spawnIdx = Math.RandomInt(0, spawnCount);
-							array<float> pos = role.spawnpoints.Get(spawnIdx);
-							vector v = "0 0 0";
-							v[0] = pos[0];
-							v[1] = pos[1];
-							v[2] = pos[2];
 
-							DeveloperTeleport.SetPlayerPosition(player, v);
 							m_DiscordInitialized = true;
 							m_newPlayer = false;
 						}
@@ -194,6 +198,18 @@ modded class MissionServer
 
 		KickPlayer(player);
 	}
+	
+	ItemBase CreateItemOnPlayerInventory(PlayerBase player, string cls)
+	{
+		ItemBase item = ItemBase.Cast(player.GetInventory().CreateInInventory(cls));
+
+		item.SetSynchDirty();
+		
+		return item;
+
+	}
+	
+
 	
 	void KickPlayer(PlayerBase player)
 	{
