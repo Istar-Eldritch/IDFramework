@@ -1,6 +1,6 @@
 class CfgPatches
 {
-	class IE_ID
+	class IE_IDFramework
 	{
 		units[] = {};
 		weapons[] = {};
@@ -15,7 +15,7 @@ class CfgPatches
 
 class CfgMods
 {
-	class IE_ID
+	class IE_IDFramework
 	{
 		type = "mod";
 		author = "Istar Eldritch";

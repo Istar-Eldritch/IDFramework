@@ -66,9 +66,8 @@ class IE_ID_StateLoader
     }
   }
 
-  IE_ID_IdentityState CreateOrUpdateIdentity(PlayerBase player, string roleName, string discordId)
+  IE_ID_IdentityState CreateOrUpdateIdentity(string playerName, string playerId, string roleName, string discordId)
   {
-	string playerId = player.GetIdentity().GetId();
 	int id;
 	auto existing = state.player_id_map.Get(playerId);
 	if (existing != null)
@@ -83,14 +82,11 @@ class IE_ID_StateLoader
 
     IE_ID_IdentityState identity = new IE_ID_IdentityState;
     identity.id = id;
-    identity.name = player.GetIdentity().GetName();
+    identity.name = playerName;
     identity.role = roleName;
     identity.discord_id = discordId;
     state.player_id_map.Set(playerId, identity);
 	m_cardIdIdx.Set(id, playerId);
-	player.SetIDIdentity(id);
-	player.SetDiscordID(discordId);
-	player.SetRole(roleName, true);
 
     Save();
 	return identity;

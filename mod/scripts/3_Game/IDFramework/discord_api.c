@@ -43,6 +43,36 @@ class DiscordAPI
 		ctx.SetHeader("application/json");
 		ctx.POST(cb, "/", body);
 	}
+	
+	array<SearchGuildMemberMemberResponse> SearchGuildMember_now(string guildId, int limit, string playerName)
+	{
+		ProxyRequest request = new ProxyRequest;
+		request.token = m_proxyToken;
+		request.url = DISCORD_URL + "/guilds/" + guildId + "/members/search";
+		request.method = "GET";
+		array<string> authHeader = {"authorization", "Bot " + m_discordToken};
+		request.headers = { authHeader };
+		array<string> limitParam = {"limit", "" + limit};
+		array<string> queryParam = {"query", playerName};
+		request.query_parameters = {limitParam, queryParam};
+
+		JsonSerializer js = new JsonSerializer();
+		string body;
+		js.WriteToString(request, false, body);
+
+		RestContext ctx = GetRestApi().GetRestContext(m_proxyURL);
+		ctx.SetHeader("application/json");
+		string data = ctx.POST_now("/", body);
+		array<SearchGuildMemberMemberResponse> memberResponse = new array<SearchGuildMemberMemberResponse>;
+		string error = "";
+		JsonSerializer serializer = new JsonSerializer;
+		serializer.ReadFromString(memberResponse, data, error);
+		if (error)
+			Print("[IDFramework] Error requesting SearchGuildMember: "  + error);
+			return null;
+		return memberResponse;
+		
+	}
 
 	void ListGuildRoles(string guildId, RestCallback cb)
 	{
@@ -62,6 +92,36 @@ class DiscordAPI
 		RestContext ctx = GetRestApi().GetRestContext(m_proxyURL);
 		ctx.SetHeader("application/json");
 		ctx.POST(cb, "/", body);
+	}
+	
+	array<ListGuildRolesRoleResponse> ListGuildRoles_now(string guildId)
+	{
+		ProxyRequest request = new ProxyRequest;
+		request.token = m_proxyToken;
+		request.url = DISCORD_URL + "/guilds/" + guildId + "/roles";
+		request.method = "GET";
+		array<string> authHeader = {"authorization", "Bot " + m_discordToken};
+		request.headers = {
+			authHeader
+		};
+
+		JsonSerializer js = new JsonSerializer();
+		string body;
+		js.WriteToString(request, false, body);
+
+		RestContext ctx = GetRestApi().GetRestContext(m_proxyURL);
+		ctx.SetHeader("application/json");
+		string data = ctx.POST_now("/", body);
+		
+		JsonSerializer serializer = new JsonSerializer;
+		string error;
+		array<ListGuildRolesRoleResponse> guildResponse = new array<ListGuildRolesRoleResponse>;
+		serializer.ReadFromString(guildResponse, data, error);
+		
+		if (error)
+			Print("[IDFramework] Error requesting ListGuildRoles: "  + error);
+			return null;
+		return guildResponse;
 	}
 }
 

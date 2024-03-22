@@ -16,188 +16,8 @@ modded class MissionBase
 
 }
 
-class PlayerInfo
-{
-	string name;
-	ref array<string> roles;
-	string discord_id;
-}
-
-class ListRolesCallback: RestCallback
-{
-	MissionServer m_mission;
-
-	void ListRolesCallback(MissionServer mission)
-	{
-		m_mission = mission;
-	}
-
-	override void OnError(int errorCode)
-	{
-		Print("[ID Framework] Error requesting roles from discord: " + errorCode);
-		m_mission.OnDiscordRoles(null);
-	}
-	
-	override void OnSuccess(string data, int dataSize)
-	{
-		
-		JsonSerializer serializer = new JsonSerializer;
-		string error;
-		array<ref ListGuildRolesRoleResponse> roleResponse = new array<ref ListGuildRolesRoleResponse>;
-		serializer.ReadFromString(roleResponse, data, error);
-		if (error)
-		{
-			Print("[ID Framework] Error parsing roles response from discord: " + error);
-			m_mission.OnDiscordRoles(null);
-			return;
-		}
-
-		m_mission.OnDiscordRoles(roleResponse);
-	}
-}
-
-
-class SearchGuildMemberCallback: RestCallback
-{
-	PlayerBase m_player;
-	MissionServer m_mission;
-
-	void SearchGuildMemberCallback(PlayerBase player, MissionServer mission)
-	{
-		m_player = player;
-		m_mission = mission;
-	}
-
-	override void OnError(int errorCode)
-	{
-		Print("[ID Framework] Error searching for member from discord: " + errorCode);
-		m_mission.OnDiscordIdentity(m_player, null);
-	}
-	
-	override void OnSuccess(string data, int dataSize)
-	{
-		JsonSerializer serializer = new JsonSerializer;
-		string error;
-		array<SearchGuildMemberMemberResponse> memberResponse = new array<SearchGuildMemberMemberResponse>;
-		serializer.ReadFromString(memberResponse, data, error);
-		
-		foreach(auto member: memberResponse)
-		{
-			array<string> roles = new array<string>;
-			foreach(string roleId: member.roles)
-			{
-				foreach(auto role: m_mission.m_DiscordRoles)
-				{
-					if (role.id == roleId)
-					{
-						roles.Insert(role.name);
-						break;
-					}
-				}
-			}
-			PlayerInfo info = new PlayerInfo;
-			info.name = member.nick;
-			info.roles = roles;
-			info.discord_id = member.user.id;
-			m_mission.OnDiscordIdentity(m_player, info);
-			break;
-		}
-	}
-}
-
 modded class MissionServer
 {
-	ref DiscordAPI m_api;
-	bool m_DiscordInitialized = false;
-	bool m_newPlayer = false;
-	ref array<ref ListGuildRolesRoleResponse> m_DiscordRoles;
-
-	void MissionServer()
-	{
-		IE_ID_Config config = GetIDConfig();
-		m_api = new DiscordAPI(config.proxyUrl, config.proxyToken, config.discordBotToken);
-		GetGame().GetCallQueue(CALL_CATEGORY_SYSTEM).CallLater(RequestListRoles, 10000);
-	}
-	
-	void OnDiscordRoles(array<ref ListGuildRolesRoleResponse> roles)
-	{
-		if (roles != null)
-		{
-			m_DiscordRoles = roles;
-		}
-		else
-		{
-			GetGame().GetCallQueue(CALL_CATEGORY_SYSTEM).CallLater(RequestListRoles, 10000);
-		}
-	}
-	
-	void RequestListRoles()
-	{
-		IE_ID_Config config = GetIDConfig();
-		m_api.ListGuildRoles(config.discordGuildID, new ListRolesCallback(this));
-	}
-
-	void OnDiscordIdentity(PlayerBase player, PlayerInfo playerInfo)
-	{
-		if (playerInfo != null && playerInfo.name == player.GetIdentity().GetName())
-		{
-			
-			auto config = GetIDConfig();
-			bool hasRole = false;
-			foreach (auto role: config.roles)
-			{
-				foreach(auto roleName: playerInfo.roles)
-				{
-					if (role.name == roleName)
-					{
-						auto state = GetIDStateLoader();
-						auto oldDiscordId = state.GetIdentity(player.GetIdentity().GetId());
-						auto newDiscordId = state.CreateOrUpdateIdentity(player, roleName, playerInfo.discord_id);
-						bool hasNewId = oldDiscordId == null || oldDiscordId.id != newDiscordId.id || oldDiscordId.name != newDiscordId.name;
-						if (m_newPlayer || hasNewId)
-						{
-							int spawnCount = role.spawnpoints.Count();
-							int spawnIdx = Math.RandomInt(0, spawnCount);
-							array<float> pos = role.spawnpoints.Get(spawnIdx);
-							vector v = "0 0 0";
-							v[0] = pos[0];
-							v[1] = pos[1];
-							v[2] = pos[2];
-
-							DeveloperTeleport.SetPlayerPosition(player, v);
-
-							array<EntityAI> items = new array<EntityAI>;
-							player.GetInventory().EnumerateInventory(InventoryTraversalType.POSTORDER, items);
-							foreach (auto item: items)
-							{
-								if (item.GetType() != player.GetType())
-								{
-									player.GetInventory().LocalDestroyEntity(item);
-								}
-							}
-							foreach (string cls: role.loadout)
-							{
-								CreateItemOnPlayerInventory(player, cls);
-							}
-							
-							if(role.spawns_with_card && role.card != "")
-							{
-								ItemBase cardItem = CreateItemOnPlayerInventory(player, role.card);
-								IE_IdentityCard_Base card = IE_IdentityCard_Base.Cast(cardItem);
-								card.EvaluateOwner(player);
-							}
-
-							m_DiscordInitialized = true;
-							m_newPlayer = false;
-						}
-						return;
-					}
-				}
-			}
-		}
-
-		KickPlayer(player);
-	}
 	
 	ItemBase CreateItemOnPlayerInventory(PlayerBase player, string cls)
 	{
@@ -208,10 +28,35 @@ modded class MissionServer
 		return item;
 
 	}
-	
 
+	override void OnClientPrepareEvent(PlayerIdentity identity, out bool useDB, out vector pos, out float yaw, out int preloadTimeout)
+	{
+		super.OnClientPrepareEvent(identity, useDB, pos, yaw, preloadTimeout);
+		identity.Init();
+	}
 	
-	void KickPlayer(PlayerBase player)
+	override void InvokeOnConnect(PlayerBase player, PlayerIdentity identity)
+	{
+		super.InvokeOnConnect(player, identity);
+		PlayerInfo playerInfo = identity.GetPlayerInfo();
+		if (playerInfo == null || playerInfo.name != identity.GetName())
+		{
+			GetGame().GetCallQueue(CALL_CATEGORY_SYSTEM).CallLater(IEKickPlayer, 0, false, player);
+		}
+		else
+		{
+			auto state = GetIDStateLoader();
+			auto discordState = state.GetIdentity(identity.GetId());
+			if (discordState)
+			{
+				player.SetIDIdentity(discordState.id);
+				player.SetDiscordID(playerInfo.discord_id);
+				player.SetRole(playerInfo.role.name, true);
+			}
+		}
+	}
+	
+	private void IEKickPlayer(PlayerBase player)
 	{
 		if (!GetGame() || !player)
 			return;
@@ -224,19 +69,68 @@ modded class MissionServer
 		GetGame().SendLogoutTime(player, 0);
 
 		missionServer.PlayerDisconnected(player, player.GetIdentity(), player.GetIdentity().GetId());
-	}
 
-	override void InvokeOnConnect(PlayerBase player, PlayerIdentity identity)
-	{
-		super.InvokeOnConnect(player, identity);
-		IE_ID_Config config = GetIDConfig();
-		m_api.SearchGuildMember(config.discordGuildID, 1, identity.GetName(), new SearchGuildMemberCallback(player, this));
 	}
 
 	override PlayerBase OnClientNewEvent(PlayerIdentity identity, vector pos, ParamsReadContext ctx)
 	{
-		super.OnClientNewEvent(identity, pos, ctx);
-		m_newPlayer = true;
+		string characterType = GetGame().CreateRandomPlayer();
+		
+		// get login data for new character
+		if (ProcessLoginData(ctx) && (m_RespawnMode == GameConstants.RESPAWN_MODE_CUSTOM) && !GetGame().GetMenuDefaultCharacterData(false).IsRandomCharacterForced())
+		{
+			if (GetGame().ListAvailableCharacters().Find(GetGame().GetMenuDefaultCharacterData().GetCharacterType()) > -1)
+				characterType = GetGame().GetMenuDefaultCharacterData().GetCharacterType();
+		}
+
+		CreateIDCharacter(identity, pos, ctx, characterType);
+		
+		return m_player;
+	}
+	
+	PlayerBase CreateIDCharacter(PlayerIdentity identity, vector pos, ParamsReadContext ctx, string characterName)
+	{
+		IE_ID_Config config = GetIDConfig();
+		PlayerInfo playerInfo = identity.GetPlayerInfo();
+		Entity playerEnt;
+		if (playerInfo != null)
+		{
+			auto state = GetIDStateLoader();
+			auto oldDiscordId = state.GetIdentity(identity.GetId());
+			auto newDiscordId = state.CreateOrUpdateIdentity(identity.GetName(), identity.GetId(), playerInfo.role.name, playerInfo.discord_id);
+			int spawnCount = playerInfo.role.spawnpoints.Count();
+			int spawnIdx = Math.RandomInt(0, spawnCount);
+			array<float> spawnpoint = playerInfo.role.spawnpoints.Get(spawnIdx);
+			vector playerPos = "0 0 0";
+			playerPos[0] = spawnpoint[0];
+			playerPos[1] = spawnpoint[1];
+			playerPos[2] = spawnpoint[2];
+
+			playerEnt = GetGame().CreatePlayer(identity, characterName, playerPos, 0, "NONE");
+			Class.CastTo(m_player, playerEnt);
+			m_player.SetIDIdentity(newDiscordId.id);
+			m_player.SetDiscordID(playerInfo.discord_id);
+			m_player.SetRole(playerInfo.role.name, true);
+			GetGame().SelectPlayer(identity, m_player);
+
+			foreach (string cls: playerInfo.role.loadout)
+			{
+				CreateItemOnPlayerInventory(m_player, cls);
+			}
+			
+			if(playerInfo.role.spawns_with_card && playerInfo.role.card != "")
+			{
+				ItemBase cardItem = CreateItemOnPlayerInventory(m_player, playerInfo.role.card);
+				IE_IdentityCard_Base card = IE_IdentityCard_Base.Cast(cardItem);
+				card.EvaluateOwner(m_player);
+			}
+		}
+		else
+		{
+			playerEnt = GetGame().CreatePlayer(identity, characterName, pos, 0, "NONE");
+			Class.CastTo(m_player, playerEnt);
+		}
+
 		return m_player;
 	}
 }
