@@ -12,12 +12,14 @@ mklink /J "P:\IE\IDFramework" "%SCRIPT_DIR%\..\mod"
 
 mklink /J "P:\Mods" "%UserProfile%\Documents\Mods"
 
-@REM Community Framework
+@REM IE Framework
+mklink /J "%DAYZ_PATH%\IE\Framework" "%UserProfile%\Documents\DZ\IEFramework\mod"
+mklink /J "P:\IE\Framework" "%UserProfile%\Documents\DZ\IEFramework\mod"
 
+@REM Community Framework
 mklink /J "%DAYZ_PATH%JM" "%UserProfile%\Documents\DZ\CommunityFramework\JM"
 mklink /J "P:\JM" "%UserProfile%\Documents\DZ\CommunityFramework\JM"
 
 @REM COT
-
 mklink /J "%DAYZ_PATH%JM\COT" "%UserProfile%\Documents\DZ\DayZ-CommunityOnlineTools\JM\COT"
 mklink /J "P:\JM\COT" "%UserProfile%\Documents\DZ\DayZ-CommunityOnlineTools\JM\COT"

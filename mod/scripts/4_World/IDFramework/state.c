@@ -10,7 +10,6 @@ class IE_ID_IdentityState
 class IE_ID_State
 {
     int version = 1;
-    int last_id = 0;
     ref map<string, ref IE_ID_IdentityState> player_id_map = new map<string, ref IE_ID_IdentityState>;
 }
 
@@ -27,6 +26,7 @@ class IE_ID_StateLoader
 
   ref IE_ID_State state = new IE_ID_State;
   ref map<int, string> m_cardIdIdx = new map<int, string>;
+  ref array<int> ids = new array<int>;
 
   void Load()
   {
@@ -45,6 +45,12 @@ class IE_ID_StateLoader
         foreach( string key, auto value: state.player_id_map)
         {
           m_cardIdIdx.Set(value.id, key);
+          auto match = new IE_SearchMatch<int>(value.id);
+          IE_BinSearchResult result = IE_ArrayUtils<int>.BinarySearch(ids, match);
+          if (!result.success)
+          {
+            ids.InsertAt(result.idx, value.id);	
+          }
         }
       }
       else
@@ -65,6 +71,22 @@ class IE_ID_StateLoader
       JsonFileLoader<ref IE_ID_State>.JsonSaveFile(CONFIG_PATH, state);
     }
   }
+	
+  int GenRandomID()
+  {
+	while(true)
+	{
+		int guess = Math.RandomInt(0, 100000);
+		auto match = new IE_SearchMatch<int>(guess);
+		IE_BinSearchResult result = IE_ArrayUtils<int>.BinarySearch(ids, match);
+		if (!result.success)
+		{
+			ids.InsertAt(result.idx, guess);
+			return guess;
+		}
+	}
+	return -1;
+  }
 
   IE_ID_IdentityState CreateOrUpdateIdentity(string playerName, string playerId, string roleName, string discordId)
   {
@@ -76,8 +98,7 @@ class IE_ID_StateLoader
 	}
 	else
 	{
-    	state.last_id++;
-		id = state.last_id;	
+		id = GenRandomID();
 	}
 
     IE_ID_IdentityState identity = new IE_ID_IdentityState;
